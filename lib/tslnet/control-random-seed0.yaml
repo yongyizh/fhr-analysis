@@ -1,0 +1,54 @@
+# Random-weights CONTROL for the TSLNet pretraining bet.
+#
+# Identical to the v8 winning config (lib/tslnet/models/tslnet-v8/config.yaml) in every
+# hyperparameter -- head shape, model_hz, crop_len, optimiser, schedule -- so the ONLY
+# difference from a pretrained run is the backbone's weights. That is what makes this a
+# control: it measures whether TimesFM's pretraining beats a random projection of the same
+# architecture. If the val loss here matches the pretrained arm, the 500M pretrained
+# parameters are contributing nothing on this data.
+#
+# One seed is one draw. Copy this to control-random-seed1/2.yaml (backbone_seed: 1, 2 and a
+# matching model_dir) and run all three before reading anything into a small gap -- the model
+# docstring is explicit about this.
+#
+# Data note: v8's published number was trained on stereo_v1; this points at stereo_v2, which
+# is what generate_training_snippets.sh currently produces. So the fair comparison is against a
+# PRETRAINED run on stereo_v2 (the default fetal-config.yaml arm), not against v8's saved curve.
+model:
+  channels: 3
+  checkpoint: google/timesfm-2.0-500m-pytorch
+  pretrained: false        # <-- the control: architecture from the checkpoint, weights random
+  backbone_seed: 0         # reproducible; sweep 0/1/2 across seed variants
+  head_hidden: 256
+  head_layers: 4
+  dropout: 2.3601268360405993e-05
+  context_length: 2048
+  patch_length: 32
+  model_hz: 1000
+train:
+  optimizer: AdamW
+  learning_rate: 0.0006465975908742037
+  weight_decay: 0.004895852144722669
+  batch_size: 8
+  epochs: 50
+  crop_len: 2.048
+  clip: 5.0
+  loss: mse
+  lr_schedule: cosine
+  min_lr: 2.983657093124185e-06
+  plateau_factor: 0.5
+  plateau_patience: 3
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  augment:
+  - channel_dropout
+  - gain
+  - noise
+data:
+  train_dir: training/stereo_v2/fetal-train
+  val_dir: training/stereo_v2/fetal-test
+  num_workers: 8
+  preprocess:
+  - bandpass
+  - normalize
+model_dir: models/tslnet-control-random-seed0/
