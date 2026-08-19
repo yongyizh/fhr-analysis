@@ -20,8 +20,16 @@ chmod a+x setup.sh
 # Builds training/stereo_v2/ that the control config points at. Deterministic; safe to rerun,
 # but do NOT run this job concurrently with another that regenerates the same dir -- they race
 # on the same output. If stereo_v2 already exists from a prior job, you can comment this out.
-chmod a+x lib/tslnet/generate_training_snippets.sh
-lib/tslnet/generate_training_snippets.sh
+# Snippets are gitignored, so they are either staged here (rsync'd from a workstation) or
+# built now from Banner_data/. Skipping when present keeps the job idempotent and avoids two
+# concurrently-queued jobs racing to rewrite the same directory.
+if [ -d lib/tslnet/training/stereo_v2/fetal-train ]; then
+  echo "Snippets already present at lib/tslnet/training/stereo_v2/ -- skipping generation."
+else
+  echo "No snippets found -- generating from Banner_data/ ..."
+  chmod a+x lib/tslnet/generate_training_snippets.sh
+  lib/tslnet/generate_training_snippets.sh
+fi
 
 # The TimesFM checkpoint is ~1.9 GB, fetched once then reused. Keep the cache beside the repo so
 # a compute node with a non-shared or wiped home does not re-download it every job. Note: the
