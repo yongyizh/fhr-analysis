@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Train PANNet: frozen AudioSet-pretrained Cnn14 under a trainable MLP head.
+# Submit with:  ./batch.sh train_pann
+
+# Job Flags
+#SBATCH -p mit_normal_gpu
+#SBATCH -c 8
+#SBATCH --mem=32G
+#SBATCH -G 1
+# Partition DefaultTime is 02:00:00, MaxTime 06:00:00. Only a 1.6M-param head trains, so this
+# is short, but a first run also pays for setup.sh and the ~330 MB Cnn14 download.
+#SBATCH -t 05:45:00
+#SBATCH -o logs/%x_%j.out
+#SBATCH -e logs/%x_%j.out
+
+module load miniforge
+
+chmod a+x setup.sh
+./setup.sh
+
+# PANNet reads TSLNet's snippets (same {i}_mix.wav/{i}_heart.wav format, shared rather than
+# duplicated -- see lib/pann/fetal-config.yaml). They are gitignored, so they must be staged.
+if [ ! -d lib/tslnet/training/stereo_v1/fetal-train ]; then
+  echo "ERROR: lib/tslnet/training/stereo_v1/fetal-train is missing." >&2
+  echo "Stage it from a workstation, then resubmit:" >&2
+  echo "  tar --no-xattrs -czf - lib/tslnet/training/stereo_v1 | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
+  exit 1
+fi
+echo "Snippets found at lib/tslnet/training/stereo_v1/"
+
+# Cnn14 is ~330 MB, fetched once then reused. Keep the cache beside the repo so a compute node
+# with a non-shared or wiped home does not re-download it on every job. Shared with TSLNet's
+# TimesFM cache, which is why the same HF_HOME is used.
+export HF_HOME="${HF_HOME:-$PWD/.hf-cache}"
+mkdir -p "$HF_HOME"
+
+poetry run pann-train lib/pann/fetal-config.yaml
