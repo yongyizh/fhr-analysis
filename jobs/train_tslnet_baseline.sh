@@ -9,6 +9,11 @@
 #SBATCH -c 8
 #SBATCH --mem=32G
 #SBATCH -G 1
+# The partition's DefaultTime is 02:00:00 and MaxTime 06:00:00. Training itself is short (a
+# frozen backbone, ~1M trainable head params), but the FIRST run on a node also pays for
+# setup.sh and the ~1.9 GB TimesFM download, and a run killed at the 2 h default loses
+# everything after the last model_best.pt write. Ask for near the cap; unused time costs nothing.
+#SBATCH -t 05:45:00
 #SBATCH -o logs/%x_%j.out
 #SBATCH -e logs/%x_%j.out
 
