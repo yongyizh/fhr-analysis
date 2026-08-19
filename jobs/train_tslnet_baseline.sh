@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Paired PRETRAINED baseline (pretrained: true) for the random-weights control. Identical to train_tslnet.sh
-# except it trains lib/tslnet/baseline-pretrained.yaml (pretrained: true) instead of
-# fetal-config.yaml. Submit with:  ./batch.sh train_tslnet_baseline
+# Paired PRETRAINED baseline (pretrained: true) for the random-weights control. This is the arm
+# the control must be compared against -- same hyperparameters, same stereo_v1 data, only the
+# backbone weights differ.
+# Submit with:  ./batch.sh train_tslnet_baseline
 
 # Job Flags
 #SBATCH -p mit_normal_gpu
@@ -10,9 +11,9 @@
 #SBATCH --mem=32G
 #SBATCH -G 1
 # The partition's DefaultTime is 02:00:00 and MaxTime 06:00:00. Training itself is short (a
-# frozen backbone, ~1M trainable head params), but the FIRST run on a node also pays for
-# setup.sh and the ~1.9 GB TimesFM download, and a run killed at the 2 h default loses
-# everything after the last model_best.pt write. Ask for near the cap; unused time costs nothing.
+# frozen backbone, ~1M trainable head params), but a first run on a node also pays for setup.sh
+# and the ~1.9 GB TimesFM download, and a job killed at the default loses everything after the
+# last model_best.pt write. Unused walltime is not charged.
 #SBATCH -t 05:45:00
 #SBATCH -o logs/%x_%j.out
 #SBATCH -e logs/%x_%j.out
@@ -22,22 +23,20 @@ module load miniforge
 chmod a+x setup.sh
 ./setup.sh
 
-# Builds training/stereo_v2/ that the control config points at. Deterministic; safe to rerun,
-# but do NOT run this job concurrently with another that regenerates the same dir -- they race
-# on the same output. If stereo_v2 already exists from a prior job, you can comment this out.
-# Snippets are gitignored, so they are either staged here (rsync'd from a workstation) or
-# built now from Banner_data/. Skipping when present keeps the job idempotent and avoids two
-# concurrently-queued jobs racing to rewrite the same directory.
-if [ -d lib/tslnet/training/stereo_v2/fetal-train ]; then
-  echo "Snippets already present at lib/tslnet/training/stereo_v2/ -- skipping generation."
-else
-  echo "No snippets found -- generating from Banner_data/ ..."
-  chmod a+x lib/tslnet/generate_training_snippets.sh
-  lib/tslnet/generate_training_snippets.sh
+# Snippets are gitignored, so they must be staged here (tar/rsync'd from a workstation).
+# NOTE: lib/tslnet/generate_training_snippets.sh writes stereo_v2/, but these configs read
+# stereo_v1/, so auto-generating would silently train on a directory nobody asked for. Fail
+# loudly instead -- a missing dataset should stop the job, not quietly become a different one.
+if [ ! -d lib/tslnet/training/stereo_v1/fetal-train ]; then
+  echo "ERROR: lib/tslnet/training/stereo_v1/fetal-train is missing." >&2
+  echo "Stage it from a workstation, then resubmit:" >&2
+  echo "  tar --no-xattrs czf - lib/tslnet/training/stereo_v1 | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
+  exit 1
 fi
+echo "Snippets found at lib/tslnet/training/stereo_v1/"
 
 # The TimesFM checkpoint is ~1.9 GB, fetched once then reused. Keep the cache beside the repo so
-# a compute node with a non-shared or wiped home does not re-download it every job. Note: the
+# a compute node with a non-shared or wiped home does not re-download it on every job.
 export HF_HOME="${HF_HOME:-$PWD/.hf-cache}"
 mkdir -p "$HF_HOME"
 

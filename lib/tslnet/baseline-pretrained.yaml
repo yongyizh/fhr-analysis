@@ -1,10 +1,10 @@
 # PAIRED PRETRAINED BASELINE for the random-weights control (control-random-seed0.yaml).
 #
 # Byte-identical to the control except pretrained: true and model_dir. This is the arm the
-# control must be compared against: same v8 hyperparameters, same stereo_v2 data, ONLY the
-# frozen backbone's weights differ (TimesFM pretrained here vs random in the control). v8's own
-# saved number is on stereo_v1, which the current generator no longer produces, so that number
-# is NOT a fair comparison -- run this instead.
+# control must be compared against: same v8 hyperparameters, same stereo_v1 data, ONLY the
+# frozen backbone's weights differ (TimesFM pretrained here vs random in the control). Both arms
+# read stereo_v1. Do not read tslnet-v8's saved number as the baseline: it was produced from a
+# different machine's stereo_v1, so this run is the only controlled comparison for the control.
 model:
   channels: 3
   checkpoint: google/timesfm-2.0-500m-pytorch
@@ -35,8 +35,8 @@ train:
   - gain
   - noise
 data:
-  train_dir: training/stereo_v2/fetal-train
-  val_dir: training/stereo_v2/fetal-test
+  train_dir: training/stereo_v1/fetal-train
+  val_dir: training/stereo_v1/fetal-test
   num_workers: 8
   preprocess:
   - bandpass

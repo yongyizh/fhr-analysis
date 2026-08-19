@@ -11,9 +11,10 @@
 # matching model_dir) and run all three before reading anything into a small gap -- the model
 # docstring is explicit about this.
 #
-# Data note: v8's published number was trained on stereo_v1; this points at stereo_v2, which
-# is what generate_training_snippets.sh currently produces. So the fair comparison is against a
-# PRETRAINED run on stereo_v2 (the default fetal-config.yaml arm), not against v8's saved curve.
+# Data note: this points at stereo_v1. Compare it ONLY against baseline-pretrained.yaml, which
+# reads the same stereo_v1 -- not against tslnet-v8's saved curve. v8 references a stereo_v1
+# produced on another machine; a same-named directory regenerated here is not guaranteed to hold
+# the same labels, so only the paired arms below are a controlled comparison.
 model:
   channels: 3
   checkpoint: google/timesfm-2.0-500m-pytorch
@@ -45,8 +46,8 @@ train:
   - gain
   - noise
 data:
-  train_dir: training/stereo_v2/fetal-train
-  val_dir: training/stereo_v2/fetal-test
+  train_dir: training/stereo_v1/fetal-train
+  val_dir: training/stereo_v1/fetal-test
   num_workers: 8
   preprocess:
   - bandpass
