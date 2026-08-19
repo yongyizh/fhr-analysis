@@ -1,0 +1,44 @@
+# PAIRED PRETRAINED BASELINE for the random-weights control (control-random-seed0.yaml).
+#
+# Byte-identical to the control except pretrained: true and model_dir. This is the arm the
+# control must be compared against: same v8 hyperparameters, same stereo_v2 data, ONLY the
+# frozen backbone's weights differ (TimesFM pretrained here vs random in the control). v8's own
+# saved number is on stereo_v1, which the current generator no longer produces, so that number
+# is NOT a fair comparison -- run this instead.
+model:
+  channels: 3
+  checkpoint: google/timesfm-2.0-500m-pytorch
+  pretrained: true         # <-- the only weight-affecting difference from the control
+  head_hidden: 256
+  head_layers: 4
+  dropout: 2.3601268360405993e-05
+  context_length: 2048
+  patch_length: 32
+  model_hz: 1000
+train:
+  optimizer: AdamW
+  learning_rate: 0.0006465975908742037
+  weight_decay: 0.004895852144722669
+  batch_size: 8
+  epochs: 50
+  crop_len: 2.048
+  clip: 5.0
+  loss: mse
+  lr_schedule: cosine
+  min_lr: 2.983657093124185e-06
+  plateau_factor: 0.5
+  plateau_patience: 3
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  augment:
+  - channel_dropout
+  - gain
+  - noise
+data:
+  train_dir: training/stereo_v2/fetal-train
+  val_dir: training/stereo_v2/fetal-test
+  num_workers: 8
+  preprocess:
+  - bandpass
+  - normalize
+model_dir: models/tslnet-baseline-pretrained/
