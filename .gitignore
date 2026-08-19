@@ -13,3 +13,9 @@ src/fhr_bin/plots/out/*
 bin/record/.pico-venv_1
 dist/
 logs/
+
+# local scratch: generated outputs, reproducible from the scripts
+.DS_Store
+__pycache__/
+out/
+yz/out_*/
