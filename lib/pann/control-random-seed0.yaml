@@ -1,0 +1,55 @@
+# PANNet CONTROL ARM: identical to fetal-config.yaml except the backbone weights are random.
+#
+# Run the CONTROL alongside this. control-random-seed0.yaml is byte-identical except
+# pretrained: false, which is the only way to tell "AudioSet pretraining transfers to fetal
+# cardiac sound" from "an 82M-parameter random feature map is enough". The TSLNet experiment
+# measured its pretrained backbone at only ~3% over its own random control, so do not assume.
+model:
+  channels: 3                      # abdomen fibers 1B, 2A, 2B -- ORDER IS PART OF THE CONTRACT
+  checkpoint: 'nicofarr/panns_Cnn14'   # published Cnn14_mAP=0.431, ~330 MB, HF-cached
+  pretrained: false                # CONTROL: architecture kept, conv weights randomised
+  backbone_seed: 0                 # only used when pretrained is false
+
+  # STFT stride in 4 kHz samples = the output frame period. 320 -> 80 ms. Cnn14 pretrained at
+  # 320 (10 ms at its native 32 kHz), so this keeps the same stride-to-window ratio it learned
+  # under. 256 gives 64 ms frames, matching FUNet, at ~25% more compute.
+  hop_length: 320
+  # 1 = pool frequency only, never time. This is the whole reason a clip classifier can emit a
+  # per-frame signal; 2 reproduces stock Cnn14 and check_feasible rejects it (64x on the time
+  # axis puts ~10 beats in one output cell).
+  time_pool: 1
+
+  head_hidden: 256
+  head_layers: 2                   # 1 = plain linear probe, the standard frozen-backbone baseline
+  dropout: 0.0
+
+train:
+  optimizer: 'AdamW'
+  learning_rate: 1.e-3             # a head over frozen features wants more than a from-scratch net
+  weight_decay: 0.1
+  batch_size: 8
+  epochs: 50
+  crop_len: 7                      # seconds; 7 s ~ 16 beats, 88 frames at hop 320
+  clip: 5.0
+  loss: 'mse'                      # 'snr' | 'corr' | 'corr_amp' | 'mse'; see pann.task.LOSSES
+  lr_schedule: 'cosine'
+  min_lr: 1.e-5
+  plateau_factor: 0.5
+  plateau_patience: 3
+  amp_weight: 0.1                  # corr_amp only
+  amp_beat_threshold: 0.1          # corr_amp only
+  # Regularisation (train-only). Applied at 4 kHz, before the mel front-end.
+  augment: ['channel_dropout', 'gain', 'noise']
+
+data:
+  # Shared with TSLNet rather than duplicated: the snippet format ({i}_mix.wav +
+  # {i}_heart.wav) is identical across every model here, and a second 358 MB copy would only
+  # be a second thing to keep in step. Paths resolve relative to THIS file, not the CWD.
+  train_dir: '../tslnet/training/stereo_v1/fetal-train'
+  val_dir: '../tslnet/training/stereo_v1/fetal-test'   # held-out patient; selects model_best.pt
+  num_workers: 8
+  # Load-bearing, not optional: Cnn14's mel front-end does no band-limiting, so without
+  # 'bandpass' the model sees maternal sound and motion below the fetal band too.
+  preprocess: ['bandpass', 'normalize']
+
+model_dir: 'models/pann-control-random-seed0/'

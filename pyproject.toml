@@ -45,6 +45,8 @@ ssnet-train = "ssnet.main:main"
 ssnet-optimize = "ssnet.optimize:main"
 tslnet-train = "tslnet.train:main"
 tslnet-optimize = "tslnet.optimize:main"
+pann-train = "pann.train:main"
+pann-optimize = "pann.optimize:main"
 # Analysis
 main = "analyze.main:main"
 beat-app = "beat_app.server:main"
@@ -105,6 +107,7 @@ packages = [
     { include = "funet", from = "lib/funet" },
     { include = "ssnet", from = "lib/tune-ssnet" },
     { include = "tslnet", from = "lib/tslnet" },
+    { include = "pann", from = "lib/pann" },
     { include = "models", from = "lib/neossnet" },
     { include = "utils", from = "lib/neossnet" },
     { include = "loss_fn.py", from = "lib/neossnet" },
