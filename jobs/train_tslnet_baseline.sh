@@ -20,8 +20,15 @@
 
 module load miniforge
 
+# Serialised with flock: every job installs into the SAME shared virtualenv, so two jobs
+# starting together race and corrupt each other's dist-info. The lock makes the second job wait
+# for the first, after which poetry has nothing to do and returns immediately. Skipping the
+# install entirely when imports already work keeps the common case fast.
+mkdir -p logs
 chmod a+x setup.sh
-./setup.sh
+if ! poetry run python -c "import pann, tslnet, common" 2>/dev/null; then
+  flock logs/.setup.lock ./setup.sh
+fi
 
 # Snippets are gitignored, so they must be staged here (tar/rsync'd from a workstation).
 # NOTE: lib/tslnet/generate_training_snippets.sh writes stereo_v2/, but these configs read
