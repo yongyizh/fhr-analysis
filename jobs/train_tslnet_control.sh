@@ -2,7 +2,7 @@
 
 # Random-weights CONTROL (pretrained: false) for the TSLNet pretraining bet. Identical to the
 # paired baseline except the frozen backbone's weights are random, so the two differ only in
-# whether TimesFM's pretraining is present. Trains on stereo_v1.
+# whether TimesFM's pretraining is present. Trains on stereo_v7_3chan.
 # Submit with:  ./batch.sh train_tslnet_control
 
 # Job Flags
@@ -32,15 +32,15 @@ fi
 
 # Snippets are gitignored, so they must be staged here (tar/rsync'd from a workstation).
 # NOTE: lib/tslnet/generate_training_snippets.sh writes stereo_v2/, but these configs read
-# stereo_v1/, so auto-generating would silently train on a directory nobody asked for. Fail
+# stereo_v7_3chan/, so auto-generating would silently train on a directory nobody asked for. Fail
 # loudly instead -- a missing dataset should stop the job, not quietly become a different one.
-if [ ! -d lib/tslnet/training/stereo_v1/fetal-train ]; then
-  echo "ERROR: lib/tslnet/training/stereo_v1/fetal-train is missing." >&2
+if [ ! -d lib/tslnet/training/stereo_v7_3chan/fetal-train ]; then
+  echo "ERROR: lib/tslnet/training/stereo_v7_3chan/fetal-train is missing." >&2
   echo "Stage it from a workstation, then resubmit:" >&2
-  echo "  tar --no-xattrs czf - lib/tslnet/training/stereo_v1 | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
+  echo "  tar --no-xattrs czf - lib/tslnet/training/stereo_v7_3chan | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
   exit 1
 fi
-echo "Snippets found at lib/tslnet/training/stereo_v1/"
+echo "Snippets found at lib/tslnet/training/stereo_v7_3chan/"
 
 # The TimesFM checkpoint is ~1.9 GB, fetched once then reused. Keep the cache beside the repo so
 # a compute node with a non-shared or wiped home does not re-download it on every job.

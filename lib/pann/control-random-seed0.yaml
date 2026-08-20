@@ -45,8 +45,8 @@ data:
   # Shared with TSLNet rather than duplicated: the snippet format ({i}_mix.wav +
   # {i}_heart.wav) is identical across every model here, and a second 358 MB copy would only
   # be a second thing to keep in step. Paths resolve relative to THIS file, not the CWD.
-  train_dir: '../tslnet/training/stereo_v1/fetal-train'
-  val_dir: '../tslnet/training/stereo_v1/fetal-test'   # held-out patient; selects model_best.pt
+  train_dir: '../tslnet/training/stereo_v7_3chan/fetal-train'
+  val_dir: '../tslnet/training/stereo_v7_3chan/fetal-test'   # held-out patient; selects model_best.pt
   num_workers: 8
   # Load-bearing, not optional: Cnn14's mel front-end does no band-limiting, so without
   # 'bandpass' the model sees maternal sound and motion below the fetal band too.

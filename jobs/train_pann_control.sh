@@ -30,13 +30,13 @@ fi
 
 # PANNet reads TSLNet's snippets (same {i}_mix.wav/{i}_heart.wav format, shared rather than
 # duplicated -- see lib/pann/fetal-config.yaml). They are gitignored, so they must be staged.
-if [ ! -d lib/tslnet/training/stereo_v1/fetal-train ]; then
-  echo "ERROR: lib/tslnet/training/stereo_v1/fetal-train is missing." >&2
+if [ ! -d lib/tslnet/training/stereo_v7_3chan/fetal-train ]; then
+  echo "ERROR: lib/tslnet/training/stereo_v7_3chan/fetal-train is missing." >&2
   echo "Stage it from a workstation, then resubmit:" >&2
-  echo "  tar --no-xattrs -czf - lib/tslnet/training/stereo_v1 | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
+  echo "  tar --no-xattrs -czf - lib/tslnet/training/stereo_v7_3chan | ssh USER@orcd-login.mit.edu 'tar xzf - -C ~/fhr-analysis'" >&2
   exit 1
 fi
-echo "Snippets found at lib/tslnet/training/stereo_v1/"
+echo "Snippets found at lib/tslnet/training/stereo_v7_3chan/"
 
 # Cnn14 is ~330 MB, fetched once then reused. Keep the cache beside the repo so a compute node
 # with a non-shared or wiped home does not re-download it on every job. Shared with TSLNet's

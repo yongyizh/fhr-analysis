@@ -11,8 +11,8 @@
 # matching model_dir) and run all three before reading anything into a small gap -- the model
 # docstring is explicit about this.
 #
-# Data note: this points at stereo_v1. Compare it ONLY against baseline-pretrained.yaml, which
-# reads the same stereo_v1 -- not against tslnet-v8's saved curve. v8 references a stereo_v1
+# Data note: this points at stereo_v7_3chan. Compare it ONLY against baseline-pretrained.yaml, which
+# reads the same stereo_v7_3chan -- not against tslnet-v8's saved curve. v8 references a stereo_v7_3chan
 # produced on another machine; a same-named directory regenerated here is not guaranteed to hold
 # the same labels, so only the paired arms below are a controlled comparison.
 model:
@@ -46,8 +46,8 @@ train:
   - gain
   - noise
 data:
-  train_dir: training/stereo_v1/fetal-train
-  val_dir: training/stereo_v1/fetal-test
+  train_dir: training/stereo_v7_3chan/fetal-train
+  val_dir: training/stereo_v7_3chan/fetal-test
   num_workers: 8
   preprocess:
   - bandpass
