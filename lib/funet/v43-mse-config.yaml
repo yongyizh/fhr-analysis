@@ -1,4 +1,11 @@
-# FUNet v42 = FUNet v24 with the loss swapped from 'mse' to 'huber'.
+# FUNet v43 = the mse control for funet-v42. Identical in every respect except train.loss
+# (and huber_delta, which 'mse' ignores), so the two runs isolate the loss exactly.
+#
+# stereo_v7 is REBUILT from the raw recordings by lib/funet/generate_stereo_v7.sh, using the
+# July clips spec v24 itself was generated from (training_clips_v7.yaml). Close to v24's data
+# but not provably byte-identical: the generator has drifted since (it no longer reads
+# ppg_col). funet-v43 is the mse control on this same rebuild, which is what makes the loss
+# comparison airtight regardless of how faithful the rebuild is.
 #
 # Everything else is copied verbatim from models/funet-v24/fetal-config.yaml -- same
 # architecture, same schedule, same augmentation, same stereo_v7 snippets -- so the val curve
@@ -13,8 +20,8 @@
 # still selected by validation loss -- and costs roughly 17% wall clock.
 
 model:
-  # stereo_v7 is the 5-fiber set (1B, 2A, 2B, 2C, 2D), so the first conv takes 5 channels.
-  # This must match the channel count of the {i}_mix.wav files in data.train_dir.
+  # stereo_v7 is the 5-fiber set (1B, 2A, 2B, 2C, 2D), exactly as v24 ran it.
+  # Must match the channel count of the {i}_mix.wav files in data.train_dir.
   channels: 5
   dilations: [1, 1, 1]
   bottleneck_dilation: 1
@@ -32,7 +39,7 @@ train:
   batch_size: 8
   epochs: 80
   crop_len: 7
-  loss: 'huber'   # <- the only change from v24, which ran 'mse'
+  loss: 'mse'   # the CONTROL arm: identical to funet-v42 except for this line
   # Residual at which the loss turns from quadratic to linear, in fractions of a beat peak
   # (the target is rescaled to unit peak, exactly as under 'mse'). This is THE knob to sweep.
   # It must stay well under 1: the target's own peak is 1, so at torch's default delta of 1.0
@@ -56,4 +63,4 @@ data:
   val_dir: 'training/stereo_v7/fetal-test'   # held-out patient; selects model_best.pt
   num_workers: 8
 
-model_dir: 'models/funet-v42/'
+model_dir: 'models/funet-v43/'

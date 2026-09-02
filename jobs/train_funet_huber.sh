@@ -19,4 +19,4 @@ chmod a+x setup.sh
 # CONFIG lets one script drive a huber_delta sweep without a copy per value:
 #   sbatch --export=ALL,CONFIG=lib/funet/v24-huber-d0.05-config.yaml ... jobs/train_funet_huber.sh
 # Submitted through ./batch.sh (which does not set it) this trains the delta 0.1 baseline.
-poetry run funet-train "${CONFIG:-lib/funet/v24-huber-config.yaml}" --diagnostics
+poetry run funet-train "${CONFIG:-lib/funet/v42-huber-config.yaml}" --diagnostics

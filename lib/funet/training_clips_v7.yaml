@@ -1,0 +1,91 @@
+length: 10 # in seconds
+overlap: 3 # in seconds
+ppg_col: 1 # defaults to 0 if I don't declare
+mode: "stereo"
+warp: False
+
+impulse_mode: "gaussian" # 'gaussian' or 'gate'
+snap_to_energy: false # snap beat labels to the nearby fiber energy peak (false = keep detector timing)
+mic_beats: true
+lung: false
+
+data:
+  "patient8-session1":
+    mode: test
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "10-532"
+      - "535-545"
+      - "546-688"
+      - "690-753"
+      - "758-841"
+      - "847-907"
+      - "909-922"
+      - "924-998"
+      - "1002-1032"
+      - "1036-1137"
+      - "1148-1250"
+      - "1255-1291"
+      - "1293-1357"
+      - "1358-1415"
+      - "1426-1554"
+      - "1570-1695"
+      - "1715-1767"
+      - "1774-1805"
+  "Patient 6":
+    mode: train   # 'train' or 'test' -> routes this patient to fetal-train/ or fetal-test/
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "11-66"
+      - "67-81"
+      - "88-105"
+      - "107-125"
+      - "133-287"
+      - "288-354"
+      - "355-463"
+      - "464-510"
+      - "511-550"
+      - "551-561"
+      - "562-604"
+      - "611-625"
+      - "627-679"
+      - "680-731"
+      - "732-906"
+      - "907-908"
+      - "909-956"
+      - "957-1131"
+      - "1133-1221"
+      - "1222-1324"
+      - "1325-1384"
+      - "1385-1415"
+  "Patient 7":
+    mode: train
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "10-62"
+      - "67-75"
+      - "85-90 "
+      - "95-338"
+      - "343-573"
+      - "620-824"
+      - "829-864"
+      - "868-882"
+      - "908-940"
+      - "970-1205"
+      - "1213-1290"
+      - "1299-1450"
