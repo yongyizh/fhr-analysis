@@ -22,8 +22,9 @@ from torch import nn
 # postprocess has to be invariant to exactly what the loss was invariant to:
 #
 #   kldiv       the model already emitted log-probabilities, so exp is the real distribution.
-#   mse         regressed to a unit-peak comb, so the scale is calibrated -- keep it, just
-#               drop the sub-zero floor.
+#   mse/huber   regressed to a unit-peak comb, so the scale is calibrated -- keep it, just
+#               drop the sub-zero floor. Huber differs from MSE only in how it charges a
+#               large residual, so it pins the same scale and reads out the same way.
 #   snr/corr/   all affine-invariant (CorrelationLoss divides by both norms; CorrAmpLoss's d'
 #   corr_amp    is documented as invariant to affine scaling of the output). Nothing in
 #               training pins the scale, so the readout must not care about it either.
@@ -36,6 +37,7 @@ from torch import nn
 ACTIVITY_POSTPROCESS = {
     "kldiv":    "exp",
     "mse":      "clamp",
+    "huber":    "clamp",
     "snr":      "standardize",
     "corr":     "standardize",
     "corr_amp": "standardize",

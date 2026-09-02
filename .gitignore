@@ -13,3 +13,8 @@ src/fhr_bin/plots/out/*
 bin/record/.pico-venv_1
 dist/
 logs/
+
+# macOS metadata and locally-generated analysis outputs (patient-derived .npy, plots).
+.DS_Store
+yz/out_yz/
+yz/__pycache__/

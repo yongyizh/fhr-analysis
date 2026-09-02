@@ -8,7 +8,7 @@ import numpy as np
 
 from common.audio import SAMPLE_RATE
 from common.errors import InfeasibleConfig
-from common.losses import CorrAmpLoss, CorrelationLoss, MSELoss, SNRLoss
+from common.losses import CorrAmpLoss, CorrelationLoss, HuberLoss, MSELoss, SNRLoss
 from common.metrics import FETAL_BPM_RANGE, HRMetrics
 from common.optim import OPTIMIZERS
 from common.phases.inference import activity_postprocess
@@ -30,6 +30,9 @@ LOSSES = {
     "corr_amp": (lambda cfg: CorrAmpLoss(amp_weight=cfg.train.amp_weight,   # corr + d' peak-contrast
                                          beat_threshold=cfg.train.amp_beat_threshold), "signal"),
     "mse":      (lambda cfg: MSELoss(), "signal"),   # per-frame regression to a unit-peak comb
+    # Same target and readout as mse, but the per-frame gradient is capped at huber_delta, so
+    # the worst-placed beats stop dominating the batch. See common.losses.HuberLoss.
+    "huber":    (lambda cfg: HuberLoss(delta=cfg.train.huber_delta), "signal"),
 }
 
 

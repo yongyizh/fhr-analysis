@@ -82,9 +82,13 @@ class FUNetModelConfig:
 class FUNetTrainConfig(TrainConfig):
     """Base knobs plus FUNet's loss options and SpecAugment masks."""
 
-    loss: str = "kldiv"   # 'kldiv' | 'snr' | 'corr' | 'corr_amp' | 'mse'; see task.LOSSES
+    loss: str = "kldiv"   # 'kldiv' | 'snr' | 'corr' | 'corr_amp' | 'mse' | 'huber'; see task.LOSSES
     amp_weight: float = 0.0          # corr_amp only: weight on the d' peak-contrast term
     amp_beat_threshold: float = 0.1  # corr_amp only: frac of per-item target peak counting as a beat
+    # huber only: residual (in fractions of a beat peak, since the target is rescaled to unit
+    # peak) beyond which the loss goes linear. Must stay well under 1 or huber degenerates
+    # into 0.5 * MSE -- see common.losses.HuberLoss.
+    huber_delta: float = 0.1
     # SpecAugment (train-only), max width of one zeroed band per sample; 0 = off. Regularisation,
     # so it sits alongside `augment` rather than in `data`.
     freq_mask: int = 0    # freq bins zeroed

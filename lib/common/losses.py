@@ -9,7 +9,7 @@ Two families, and the distinction matters when picking one:
 
 * **shape** objectives (``CorrelationLoss``, ``SNRLoss``) are scale-invariant -- they score
   *where* the beats are and ignore absolute amplitude.
-* **reconstruction** objectives (``MSELoss``) pin an absolute scale.
+* **reconstruction** objectives (``MSELoss``, ``HuberLoss``) pin an absolute scale.
 
 ``CorrAmpLoss`` sits between: correlation for placement plus a d' term for contrast.
 
@@ -84,6 +84,45 @@ class MSELoss(nn.Module):
         # Rescale to unit peak per item; clamp_min guards an all-zero (silent) target.
         target = target / target.amax(dim=-1, keepdim=True).clamp_min(self.eps)
         return nn.functional.mse_loss(output, target)
+
+
+class HuberLoss(nn.Module):
+    """Huber regression against the same unit-peak comb ``MSELoss`` uses: quadratic while the
+    residual is inside ``delta``, linear beyond it.
+
+    Same objective and same readout as MSE (see ``MSELoss`` for why the target is rescaled to
+    unit peak), differing only in how a large residual is charged. MSE weights one frame that
+    is off by 0.8 as heavily as sixteen frames off by 0.2, so the gradient is dominated by the
+    worst frames -- which here are systematically the *beat* frames (the ones the target drives
+    to 1, and the ones a mistimed or mislabelled beat puts in the wrong place). Huber caps the
+    per-frame gradient at ``delta``, so a handful of badly-placed beats can no longer outvote
+    the rest of the window.
+
+    ``delta`` is in the units of the rescaled target, i.e. fractions of a beat peak, and the
+    useful range is well below 1: the target's peak *is* 1, so every residual is O(1) and
+    torch's default delta of 1.0 keeps the loss in its quadratic branch nearly everywhere --
+    that is 0.5 * MSE, not a robust loss. Start around 0.1 (a frame more than a tenth of a
+    peak off the target is treated as an outlier) and sweep 0.02-0.5 to see the knob move.
+
+    Scale note: ``nn.functional.huber_loss`` is the delta-scaled form, so for small residuals
+    it equals 0.5 * the MSE, not the MSE. Loss values are therefore ~half an MSE run's at the
+    same fit quality; compare huber runs to each other, and compare across losses with the HR
+    metric (``train.measure_hr``), never by the loss number.
+    """
+
+    def __init__(self, delta: float = 0.1, eps: float = 1e-8):
+        super().__init__()
+        if delta <= 0:
+            raise ValueError(f"HuberLoss delta must be > 0, got {delta}")
+        self.delta = delta
+        self.eps = eps
+
+    def forward(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        # Identical rescale to MSELoss: the dataset target is sum-normalised, so its peak
+        # height depends on how many beats landed in the window. Without this, `delta` would
+        # mean a different fraction of a beat in every window.
+        target = target / target.amax(dim=-1, keepdim=True).clamp_min(self.eps)
+        return nn.functional.huber_loss(output, target, delta=self.delta)
 
 
 class CorrAmpLoss(nn.Module):
