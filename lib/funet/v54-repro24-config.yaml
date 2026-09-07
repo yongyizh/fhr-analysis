@@ -1,0 +1,49 @@
+# FUNet v54 = a REPRODUCTION ATTEMPT of funet-v24.
+#
+# Every model/train field is copied verbatim from models/funet-v24/fetal-config.yaml.
+# The one deliberate difference is the data: stereo_v7_v8 rebuilds v24's clips with
+# ground truth from the v8 beat detector (mic_beats false), testing the hypothesis that
+# v24's labels came from v8 rather than from the hand-marked mic_beats.npy files.
+#
+# The number to beat is v24's published train 0.041 / val 0.0661. Nothing is seeded, so
+# expect run-to-run scatter -- a close match means the hypothesis holds, a large gap
+# means v24 trained on something else.
+#
+# measure_hr is on where v24 had it off: diagnostic only, never touches the weights.
+model:
+  channels: 5
+  dilations:
+  - 1
+  - 1
+  - 1
+  bottleneck_dilation: 1
+  bottleneck_convs: 2
+  codec_convolutions: 3
+  base_channels: 12
+  dropout: 0.0
+  n_fft: 1024
+  hop_length: 256
+train:
+  optimizer: AdamW
+  learning_rate: 0.0003
+  weight_decay: 0.2
+  batch_size: 8
+  epochs: 80
+  crop_len: 7
+  loss: mse
+  lr_schedule: cosine
+  min_lr: 1.0e-05
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  measure_hr: true
+  augment:
+  - channel_dropout
+  - gain
+  - noise
+  freq_mask: 0
+  time_mask: 0
+data:
+  train_dir: training/stereo_v7_v8/fetal-train
+  val_dir: training/stereo_v7_v8/fetal-test
+  num_workers: 8
+model_dir: models/funet-v54/
