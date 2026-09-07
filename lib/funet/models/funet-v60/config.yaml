@@ -1,0 +1,49 @@
+# FUNet v60 -- based on funet-v48, batch_size 64 (v48 itself is 8).
+# One arm of a 1/2/4/8/16/32/64 batch-size sweep; everything else is v48's:
+# the funet-v29 recipe at 3 channels on stereo_v7_3ch, huber loss at delta 0.02.
+#
+# learning_rate and epochs are held fixed, so batch size and optimiser-update count
+# move together: 6 steps/epoch x 80 = 480 updates here, against 3600 for
+# v48 and 28240 at batch_size 1.
+#
+# Archived by the training phase next to the checkpoints it produced, so this is the
+# record of what actually ran. write_config round-trips the source YAML through
+# yaml.safe_dump, which strips comments -- hence this header being added by hand.
+model:
+  channels: 3
+  dilations:
+  - 1
+  - 1
+  - 1
+  bottleneck_dilation: 1
+  bottleneck_convs: 2
+  codec_convolutions: 3
+  base_channels: 12
+  dropout: 0.0
+  n_fft: 1024
+  hop_length: 256
+train:
+  optimizer: AdamW
+  learning_rate: 0.0003
+  weight_decay: 0.2
+  batch_size: 64
+  epochs: 80
+  crop_len: 7
+  loss: huber
+  huber_delta: 0.02
+  lr_schedule: cosine
+  min_lr: 1.0e-05
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  measure_hr: true
+  augment:
+  - channel_dropout
+  - gain
+  - noise
+  freq_mask: 0
+  time_mask: 0
+data:
+  train_dir: training/stereo_v7_3ch/fetal-train
+  val_dir: training/stereo_v7_3ch/fetal-test
+  num_workers: 8
+model_dir: models/funet-v60/
