@@ -54,6 +54,8 @@ import yaml
 from scipy.io import wavfile
 from scipy.signal import detrend, resample_poly
 
+from analyze.hr.detect_v7 import v7_beat_detector
+from analyze.hr.detect_v8 import v8_beat_detector
 from analyze.hr.detect_v9 import v9_beat_detector
 
 matplotlib.use("Agg")
@@ -96,6 +98,7 @@ class Settings:
     gate_width_ibi_fraction: float
     snap_to_energy: bool
     use_mic_beats: bool
+    fetal_detector: str   # 'v7' | 'v8' | 'v9'; see FETAL_DETECTORS
     write_lung: bool
     write_plots: bool
 
@@ -303,14 +306,30 @@ def heart_target(beat_evaluator, mix, t, sot, band, s: Settings):
     return heart, beat_times, half_width
 
 
-def fetal_detector(plot_dir, idx):
+# Which detector labels the fetal beats when a patient has no hand-marked mic_beats.npy.
+# It has changed over the project's life -- v8 through 2026-07-21, v7 until 2026-08-06, v9
+# since -- so a dataset rebuilt today does NOT get the labels its original build had unless
+# this is pinned. Select it per-dataset with `fetal_detector:` in the clips yaml.
+FETAL_DETECTORS = {
+    "v7": v7_beat_detector,
+    "v8": v8_beat_detector,
+    "v9": v9_beat_detector,
+}
+
+
+def fetal_detector(plot_dir, idx, detector: str = "v9"):
     # Match load_sot's detection signal: detrend + robust-clip before peak finding.
     def detect(sot: Audio):
         prepared = Audio(sot.time, sot.hz, _robust_clip(detrend(sot.data)))
+        try:
+            detect_fn = FETAL_DETECTORS[detector]
+        except KeyError:
+            raise ValueError(f"fetal_detector must be one of {sorted(FETAL_DETECTORS)}, "
+                             f"got {detector!r}") from None
         if plot_dir is None:
-            return v9_beat_detector(prepared, FETAL_BPM_RANGE)
-        with PLOT_LOCK:  # v7's debug plot uses pyplot
-            return v9_beat_detector(prepared, FETAL_BPM_RANGE, plot_dir, tag=f"{idx}_detections")
+            return detect_fn(prepared, FETAL_BPM_RANGE)
+        with PLOT_LOCK:  # the debug plot uses pyplot
+            return detect_fn(prepared, FETAL_BPM_RANGE, plot_dir, tag=f"{idx}_detections")
     return detect
 
 
@@ -431,7 +450,8 @@ def write_snippet(job: Job, s: Settings) -> bool:
     """One mix (mono or multi-channel) plus its mono targets; False if skipped."""
     # Hand-marked beats when this snippet's patient has them, else detect on the mic (v7).
     evaluator = (mic_beats_evaluator(job.mic_beats) if job.mic_beats is not None
-                 else fetal_detector(job.out_dir if s.write_plots else None, job.idx))
+                 else fetal_detector(job.out_dir if s.write_plots else None, job.idx,
+                                     s.fetal_detector))
 
     mix = stack_resampled(job.fibers)
     start_time = job.fibers[0].time[0]
@@ -493,6 +513,7 @@ def load_settings(cfg: dict, args) -> Settings:
         gate_width_ibi_fraction=cfg.get("gate_width_ibi_fraction", WINDOW_IBI_FRACTION),
         snap_to_energy=cfg.get("snap_to_energy", True),
         use_mic_beats=cfg.get("mic_beats", False),
+        fetal_detector=str(cfg.get("fetal_detector", "v9")),
         write_lung=cfg.get("lung", True),
         write_plots=not args.no_plots,
     )
