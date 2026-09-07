@@ -1,3 +1,9 @@
+# FUNet v49 -- based on funet-v29. changed the loss function from mse to huber, delta = 0.05.
+# Data: 3 channels (1B/2A/2B), stereo_v7_3ch.
+#
+# Archived by the training phase next to the checkpoints it produced, so this is the
+# record of what actually ran. write_config round-trips the source YAML through
+# yaml.safe_dump, which strips comments -- hence this header being added by hand.
 model:
   channels: 3
   dilations:

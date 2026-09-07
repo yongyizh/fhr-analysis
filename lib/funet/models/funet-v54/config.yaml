@@ -1,3 +1,9 @@
+# FUNet v54 -- based on funet-v24. reproduction attempt: same config, different ground truth.
+# Data: 5 channels, stereo_v7_v8 (ground truth from the v8 beat detector).
+#
+# Archived by the training phase next to the checkpoints it produced, so this is the
+# record of what actually ran. write_config round-trips the source YAML through
+# yaml.safe_dump, which strips comments -- hence this header being added by hand.
 model:
   channels: 5
   dilations:
