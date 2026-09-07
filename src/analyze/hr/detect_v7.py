@@ -63,6 +63,7 @@ def _features(
         suppress_transients: bool = True,
         transient_k: float = 4.0,
         smooth_s: float = 0.020,
+        envelope_method: str = "shannon",
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Return ``(grid_times, a)`` where ``a`` in [0, 1] is a soundness envelope on
     a ``feat_fs`` grid: high during a heart sound (S1/S2), low during the
@@ -72,7 +73,16 @@ def _features(
     hz = float(X.hz)
     if suppress_transients:
         x = _suppress_transients(x, hz, k=transient_k)
-    env = _shannon_energy_envelope(x)
+    # 'precomputed' is for an X that is ALREADY an envelope (e.g. A(t) from
+    # analyze.demodulate, or a model's beat activity). Shannon energy is -x^2 log(x^2):
+    # built to rectify an OSCILLATING waveform, and non-monotonic -- it peaks at moderate
+    # amplitude and pushes both small and large values down. Run over something already
+    # enveloped it therefore suppresses the strongest beats, which is the opposite of what
+    # the decoder needs. abs() is the identity here, since an envelope is already >= 0.
+    if (envelope_method or "shannon").lower() == "precomputed":
+        env = np.abs(x)
+    else:
+        env = _shannon_energy_envelope(x)
     env = _moving_avg(env, max(1, int(round(smooth_s * hz))))
 
     t0, t1 = float(X.time[0]), float(X.time[-1])
@@ -253,6 +263,7 @@ def v7_beat_detector(
         transient_k: float = 4.0,
         amp_asym: float = 0.0,
         return_debug: bool = False,
+        envelope_method: str = "shannon",   # 'shannon' | 'precomputed'; see _features
 ) -> dict:
     """Segment the cardiac cycle with a duration-dependent HMM; beats are S1 onsets.
 
@@ -266,7 +277,7 @@ def v7_beat_detector(
     max_rr_s = 60.0 / float(bpm_range[0])
 
     grid, a = _features(X, feat_fs, suppress_transients=suppress_transients,
-                        transient_k=transient_k)
+                        transient_k=transient_k, envelope_method=envelope_method)
 
     empty = {"peaks": np.array([], dtype=int), "times": np.array([], dtype=float)}
 
@@ -295,6 +306,29 @@ def v7_beat_detector(
     onsets = np.flatnonzero(np.diff(np.concatenate([[0], is_s1])) == 1)
     beat_times = grid[onsets] if len(onsets) else np.array([], dtype=float)
     return _finish(beat_times, labels=labels, rr=rr, sys=sys)
+
+
+def v7_envelope_aware_beat_detector(
+        X: Audio,
+        bpm_range: Tuple[float, float] = (90.0, 210.0),
+        out=None,
+        energy_range: float = 0.5,   # signature-compat (unused)
+        tag: str = "",
+        **kwargs,
+) -> dict:
+    """``v7_beat_detector`` for an ``X`` that is *already* an envelope.
+
+    Same transient suppression, smoothing, normalisation, priors and HSMM decode; only the
+    Shannon-energy stage is skipped. It exists as its own function because ``hr.fiber_beats``
+    and the ``beat_app`` detector registry both address detectors by name with a fixed
+    signature, leaving nowhere to pass a keyword through. The stock default is untouched.
+
+    Use it on the demodulated amplitude A(t) (analyze.demodulate) or on a model's beat
+    activity -- anything non-negative and already smooth.
+    """
+    kwargs.pop("envelope_method", None)   # this wrapper's whole purpose; not overridable
+    return v7_beat_detector(X, bpm_range, out, energy_range, tag,
+                            envelope_method="precomputed", **kwargs)
 
 
 # ---------------------------------------------------------------------------

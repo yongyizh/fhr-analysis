@@ -47,6 +47,11 @@ def moving_average_v2(y, window):
     w = int(window)
     if w <= 1 or y.size == 0:
         return y.copy()
+    # Clamp to the array length. np.convolve(mode="same") returns max(M, N) elements, so a
+    # window wider than the trace yields MORE smoothed values than there are timestamps --
+    # silently desyncing t from bpm on a sparse beat trace (few beats + the hardcoded
+    # 20-point HR window is exactly that case) and turning any correlation into noise.
+    w = min(w, y.size)
     kernel = np.ones(w)
     counts = np.convolve(np.ones_like(y), kernel, mode="same") # points per window
     sums = np.convolve(y, kernel, mode="same")

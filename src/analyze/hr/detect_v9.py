@@ -66,6 +66,10 @@ def _envelope(sig: np.ndarray, fs: float, method: str,
     """
     sig = np.asarray(sig, float)
     m = (method or "analytic").lower()
+    # 'precomputed': the input already IS an envelope (A(t) from analyze.demodulate, or a
+    # model's beat activity), so rectifying it again only distorts it. See detect_v7.
+    if m == "precomputed":
+        return np.abs(sig)
     if m == "rms":
         n = max(2, int(round(rms_win_s * fs)))
         return np.sqrt(np.maximum(uniform_filter1d(sig ** 2, size=n, mode="reflect"), 0.0))
@@ -306,3 +310,21 @@ def v9_beat_detector(
     if return_debug:
         result.update({"regions": regions, "env": env_smooth, "floor": floor})
     return result
+
+
+def v9_envelope_aware_beat_detector(
+        X: Audio,
+        bpm_range: Tuple[float, float] = (90.0, 180.0),
+        out=None,
+        tag: str = "",
+        **kwargs,
+) -> dict:
+    """``v9_beat_detector`` for an ``X`` that is *already* an envelope.
+
+    Same smoothing, per-block floor, FWHM regions and IBI rejection; only the envelope
+    stage is skipped. It exists as its own function because ``hr.fiber_beats`` and the
+    ``beat_app`` detector registry address detectors by name with a fixed signature,
+    leaving nowhere to pass a keyword through. The stock default is untouched.
+    """
+    kwargs.pop("envelope_method", None)
+    return v9_beat_detector(X, bpm_range, out, tag, envelope_method="precomputed", **kwargs)
