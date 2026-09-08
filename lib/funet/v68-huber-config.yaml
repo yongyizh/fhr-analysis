@@ -1,0 +1,59 @@
+# FUNet v68 = funet-v48 with crop_len 2s (v48 itself is 7s).
+#
+# One arm of a sample-length sweep over 2/4/7/16 s. Everything else is v48's: the
+# funet-v29 recipe at 3 channels, huber at delta 0.02, AdamW 3e-4 cosine, batch 8.
+#
+# crop_len is a `train` field, not `model` -- FUNet is fully convolutional, so a
+# checkpoint stays loadable at any length. It still matters at inference though:
+# GroupNorm learned its statistics at this time extent, which is why
+# yz/model_runner.py's INFERENCE_WINDOW_S defaults to the trained crop_len.
+#
+# 2s at hop 256 gives 32 spectrogram frames, floored to 32
+# by the depth-3 network. The random crop offset within each snippet is itself an
+# augmentation, so a shorter crop means MORE jitter, not just less context.
+
+model:
+  # stereo_v7_3ch is the v7 clips spec at 3 fibers (1B, 2A, 2B) -- v29's shape.
+  # Must match the channel count of the {i}_mix.wav files in data.train_dir.
+  channels: 3
+  dilations: [1, 1, 1]
+  bottleneck_dilation: 1
+  bottleneck_convs: 2
+  codec_convolutions: 3
+  base_channels: 12
+  dropout: 0.0
+  n_fft: 1024
+  hop_length: 256
+
+train:
+  optimizer: 'AdamW'
+  learning_rate: 3.e-4
+  weight_decay: 0.2
+  batch_size: 8
+  epochs: 80
+  crop_len: 2
+  loss: 'huber'   # <- the only change from v29, which ran 'mse'
+  # Residual at which the loss turns from quadratic to linear, in fractions of a beat peak
+  # (the target is rescaled to unit peak, exactly as under 'mse'). This is THE knob to sweep.
+  # It must stay well under 1: the target's own peak is 1, so at torch's default delta of 1.0
+  # every residual lands in the quadratic branch and huber degenerates into 0.5 * MSE. Too
+  # small and it approaches L1, whose optimum on a mostly-zero target is a flat floor -- check
+  # snippet_diagnostics.png for collapsed peaks if you go below ~0.05. Sweep 0.02 - 0.5.
+  huber_delta: 0.02
+  lr_schedule: 'cosine'
+  min_lr: 1.e-5
+  # Inert under 'huber' (corr_amp reads these); kept so the diff against v24 is one line.
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  # On here, off in v24: the loss numbers are not comparable across the swap, this is.
+  measure_hr: true
+  augment: ['channel_dropout', 'gain', 'noise']
+  freq_mask: 0
+  time_mask: 0
+
+data:
+  train_dir: 'training/stereo_v7_3ch/fetal-train'
+  val_dir: 'training/stereo_v7_3ch/fetal-test'   # held-out patient; selects model_best.pt
+  num_workers: 8
+
+model_dir: 'models/funet-v68/'
