@@ -18,3 +18,8 @@ logs/
 .DS_Store
 yz/out_yz/
 yz/__pycache__/
+
+# Per-model diagnostic plots: six ~18 MB pages per model, and regenerable from
+# model_best.pt via common.diagnostics.plot_snippet_diagnostics. Committing them put
+# 1.6 GB into the repo (94% of everything pushed) for artefacts nothing depends on.
+lib/funet/models/*/snippet_diagnostics-*.png
