@@ -1,0 +1,54 @@
+# FUNet v72 -- based on funet-v29, but SINGLE-CHANNEL. Loss: mse.
+# Data: mono_v7_len20 -- the v24/v7 clips written one snippet per fiber (5 fibers per
+# window, all five sharing that window's hand-marked target), 20s windows.
+#
+# v71 and v72 differ from each other ONLY in the loss, so they are a loss-only pair on
+# mono data; each also pairs with its 3-channel ancestor to isolate channel count.
+#
+# 20s windows give 13s of crop jitter, so two fibers of one window overlap 44% on
+# average and 21% of pairs are disjoint -- measured. At the 10s build it was 86% and
+# never disjoint. Targets ARE identical across the five fibers (verified: correlation
+# 1.0000 at lag 0, same length), so all the decorrelation comes from that jitter.
+#
+# channel_dropout is in train.augment but INERT at 1 channel (common.augment returns
+# the mix unchanged when c <= 1); effective augmentation is [gain, noise].
+#
+# Archived by the training phase; write_config strips comments, hence this by hand.
+model:
+  channels: 1
+  dilations:
+  - 1
+  - 1
+  - 1
+  bottleneck_dilation: 1
+  bottleneck_convs: 2
+  codec_convolutions: 3
+  base_channels: 12
+  dropout: 0.0
+  n_fft: 1024
+  hop_length: 256
+train:
+  optimizer: AdamW
+  learning_rate: 0.0003
+  weight_decay: 0.2
+  batch_size: 8
+  epochs: 80
+  crop_len: 7
+  loss: mse
+  huber_delta: 0.02
+  lr_schedule: cosine
+  min_lr: 1.0e-05
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  measure_hr: true
+  augment:
+  - channel_dropout
+  - gain
+  - noise
+  freq_mask: 0
+  time_mask: 0
+data:
+  train_dir: training/mono_v7_len20/fetal-train
+  val_dir: training/mono_v7_len20/fetal-test
+  num_workers: 8
+model_dir: models/funet-v72/
