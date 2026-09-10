@@ -1,0 +1,108 @@
+# mono_v7_len20: the v24/v7 clips at 5 fibers, written ONE SNIPPET PER FIBER.
+#
+# mode 'mono' makes fiber_groups emit one job per fiber instead of one job with every
+# fiber stacked, so each window yields 5 single-channel snippets that share one target.
+# The targets really are identical: impulse_mode 'gaussian' builds the heart signal from
+# beat times and length alone, and snap_to_energy is false so labels are never nudged by
+# a fiber's own energy. (Either flipped would make targets fiber-dependent.)
+#
+# length 20 rather than 10 is the point of this build. Training draws an independent
+# random crop offset per snippet per epoch, so two fibers from one window do NOT see the
+# same seconds -- but at length 10 the jitter is only 3s and their 7s crops still overlap
+# 86% on average, never disjoint. At length 20 the jitter is 13s: 44% mean overlap, and
+# 21% of pairs land on completely separate audio with genuinely different targets.
+# Re-randomised every epoch, which a fixed per-fiber window stagger would not be.
+#
+# overlap 13 holds the 7s stride, but a 20s window fits fewer times per section, so the
+# window count drops relative to stereo_v7. The 5x from mono more than compensates.
+length: 20 # in seconds -- long jitter range, see the header
+overlap: 13 # stride = 20 - 13 = 7s, matching the 10s build
+ppg_col: 1 # defaults to 0 if I don't declare
+mode: "mono"   # one snippet PER FIBER, not all fibers stacked
+warp: False
+
+impulse_mode: "gaussian" # 'gaussian' or 'gate'
+snap_to_energy: false # snap beat labels to the nearby fiber energy peak (false = keep detector timing)
+mic_beats: true
+lung: false
+
+data:
+  "patient8-session1":
+    mode: test
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "10-532"
+      - "535-545"
+      - "546-688"
+      - "690-753"
+      - "758-841"
+      - "847-907"
+      - "909-922"
+      - "924-998"
+      - "1002-1032"
+      - "1036-1137"
+      - "1148-1250"
+      - "1255-1291"
+      - "1293-1357"
+      - "1358-1415"
+      - "1426-1554"
+      - "1570-1695"
+      - "1715-1767"
+      - "1774-1805"
+  "Patient 6":
+    mode: train   # 'train' or 'test' -> routes this patient to fetal-train/ or fetal-test/
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "11-66"
+      - "67-81"
+      - "88-105"
+      - "107-125"
+      - "133-287"
+      - "288-354"
+      - "355-463"
+      - "464-510"
+      - "511-550"
+      - "551-561"
+      - "562-604"
+      - "611-625"
+      - "627-679"
+      - "680-731"
+      - "732-906"
+      - "907-908"
+      - "909-956"
+      - "957-1131"
+      - "1133-1221"
+      - "1222-1324"
+      - "1325-1384"
+      - "1385-1415"
+  "Patient 7":
+    mode: train
+    fibers:
+      - "1B"
+      - "2A"
+      - "2B"
+      - "2C"
+      - "2D"
+    sections:
+      - "10-62"
+      - "67-75"
+      - "85-90 "
+      - "95-338"
+      - "343-573"
+      - "620-824"
+      - "829-864"
+      - "868-882"
+      - "908-940"
+      - "970-1205"
+      - "1213-1290"
+      - "1299-1450"

@@ -87,7 +87,7 @@ from tslnet.inference import load_tslnet, run_tslnet         # noqa: E402
 # ---------------------------------------------------------------------------
 DATA_DIR = Path("/Users/yongyi/Downloads/Fiber_research/Banner patient data/"
                 "Banner_test_20251220/PT12_2")
-MODEL_VERSION = "demodulation"                  # what produces the signal the beats come off.
+MODEL_VERSION = "funet-v72"                  # what produces the signal the beats come off.
 # Any version directory under lib/{funet,tslnet,palnet,tune-ssnet}/models/ -- the family is
 # looked up from the name, so this one line switches models:
 #   "funet-v24"        stacked FIBERS -> beat-activity envelope   (main.py: v2 beats)
@@ -113,6 +113,17 @@ DEMOD_BAND = (200.0, 230.0)     # "demodulation" carrier band: narrower than BAN
                                 # amplitude-weighted average (see estimate_carrier_hz).
 DEMOD_BASEBAND_HZ = 25.0        # baseband low-pass; only has to pass a 1.8-3 Hz beat
 DEMOD_BANDPASS_ORDER = 4
+
+# How a SINGLE-CHANNEL funet (e.g. funet-v71, channels: 1) consumes a multi-fiber FIBERS
+# list. A 1-channel model reads one fiber at a time, so it can be run on each of them and
+# the per-fiber activities combined -- a different fusion from the learned channel mixing
+# in a multi-channel model's first conv, and the reason to train one at all.
+#   'mean'   average the per-fiber activity (each peak-normalised first, so one loud fiber
+#            cannot dominate the sum)
+#   'median' per-sample median -- robust to a single fiber carrying nothing
+#   None     no ensembling; requires len(FIBERS) == 1
+# Ignored entirely by multi-channel models, which keep the existing strict channel check.
+FUNET_FIBER_ENSEMBLE = "mean"        # 'mean' | 'median' | None
 NEOSSNET_PRE_BAND = (200,245)         # (190, 220) before NeoSSNet   (200,245) for pt13_2
 NEOSSNET_POST_BAND = (200,245) # (190, 210) after NeoSSNet
 INFERENCE_WINDOW_S = None                    # FUNet inference chunk length (s, integer). The spectrogram is
@@ -121,13 +132,13 @@ INFERENCE_WINDOW_S = None                    # FUNet inference chunk length (s, 
                                              # START moves. None -> the model's trained crop_len (~7 s for
                                              # v24). Straying far from the trained value can hurt accuracy
                                              # (GroupNorm then sees a different time extent than it trained on).
-FIBERS = ["1B", "2A", "2B", "2C", "2D"]      # fibers to stack, in TRAINING order (count = model channels)
+# FIBERS = ["1B", "2A", "2B", "2C", "2D"]      # fibers to stack, in TRAINING order (count = model channels)
 # FIBERS = ["1B", "2B", "2C"]
-# FIBERS = ["1B"]
+FIBERS = ["1B"]
 # FIBERS = ["1B", "2A", "2B"]           # palnet-v4: channels=3, trained on 1B/2A/2B in this order
-WINDOW = (0.0, 660.0)                      # analysis window (s); must sit within mic coverage
+WINDOW = (0.0, 660)                      # analysis window (s); must sit within mic coverage
 NST_BAND = (190.0, 220.0)                    # NST (microphone) bandpass — selectable
-OUT_DIR = Path(__file__).resolve().parent / "out_yz" / "pt12" / "demodulation (non-envelope)" 
+OUT_DIR = Path(__file__).resolve().parent / "out_yz" / "pt12" / "funet" / "v72"  
 
 NST_PAD = 30.0                               # extra s of NST saved on each side, so a large drift
                                              # shift has NST data to pull in (lag can be many s)
@@ -150,7 +161,7 @@ NST_DRIFT_LOG = None                         # dropout CSV; None -> DATA_DIR / n
 # every HR number downstream -- not just the beats_hr_check.html panel.
 NST_DETECTOR = "v7_beat_detector"            # detector for the NST (microphone) beat timing.
                                              # main.py uses v7 here.
-FIBER_DETECTOR = None            # detector for the MODEL OUTPUT -- the funet/tslnet/palnet
+FIBER_DETECTOR = "v9_beat_detector"           # detector for the MODEL OUTPUT -- the funet/tslnet/palnet
                                              # activity, the NeoSSNet waveform, or the plain
                                              # band-passed fiber, whichever MODEL_VERSION
                                              # selects. Set a name to pin it, e.g.
@@ -316,9 +327,31 @@ def model_signal(family, entry, x, fs, fiber_names):
     device = torch.device("cpu")
     if family == "funet":
         cfg = load_config(entry.config)
-        _check_channels(cfg, fiber_names)
         _report_funet_window(cfg)
         model = load_funet(cfg, entry.checkpoint, device)
+
+        # A 1-channel checkpoint against several fibers: run it per fiber and combine,
+        # rather than failing the channel check. Each fiber's activity is peak-normalised
+        # before combining -- run_funet's readout preserves absolute scale for the
+        # mse/huber losses (clamp_min(0)), so a fiber that simply runs louder would
+        # otherwise dominate a plain mean without carrying more beat information.
+        if cfg.model.channels == 1 and len(fiber_names) > 1:
+            if FUNET_FIBER_ENSEMBLE not in ("mean", "median"):
+                raise ValueError(
+                    f"{MODEL_VERSION} is single-channel but FIBERS has {len(fiber_names)} "
+                    f"entries {fiber_names}; set FUNET_FIBER_ENSEMBLE to 'mean' or 'median', "
+                    f"or reduce FIBERS to one.")
+            acts = []
+            for i, name in enumerate(fiber_names):
+                a = np.asarray(run_funet(x[i:i + 1], fs, model, cfg, device), dtype=float)
+                peak = float(np.max(np.abs(a)))
+                acts.append(a / peak if peak > 0 else a)
+                print(f"  {name}: peak {peak:.4g}")
+            stack = np.stack(acts)
+            combined = stack.mean(axis=0) if FUNET_FIBER_ENSEMBLE == "mean" else np.median(stack, axis=0)
+            return combined, f"beat activity ({FUNET_FIBER_ENSEMBLE} of {len(acts)} fibers)"
+
+        _check_channels(cfg, fiber_names)
         return np.asarray(run_funet(x, fs, model, cfg, device), dtype=float), "beat activity"
 
     if family == "tslnet":
