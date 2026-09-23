@@ -55,7 +55,13 @@ def run_training(
         model.load_state_dict(task.adapt_state_dict(state_dict, config))
 
     train_dl = task.make_train_loader(config)
-    val_dl = task.make_val_loader(config)
+    # No val_dir and no val_fraction: every patient trains, and fit() selects model_best.pt on
+    # training loss instead (see common.engine.fit).
+    has_val = bool(config.data.val_dir) or config.data.val_fraction > 0
+    val_dl = task.make_val_loader(config) if has_val else None
+    if not has_val:
+        print("No validation split (data.val_dir empty): model_best.pt is the "
+              "lowest-TRAINING-loss epoch")
     optimiser = task.build_optimizer(config, model)
     scheduler = task.build_scheduler(config, optimiser)
     # Unlike the loss, the HR metric is not free: it runs the full inference path (beat
@@ -65,6 +71,9 @@ def run_training(
     # loss regardless; it only adds a log line, a curve, and something for a search to rank by.
     if measure_hr is None:
         measure_hr = config.train.measure_hr
+    if measure_hr and val_dl is None:
+        print("measure_hr ignored: there is no validation split to score")
+        measure_hr = False
     make_scorer = task.make_val_scorer(config) if measure_hr else None
     if measure_hr and make_scorer is None:
         raise ValueError(

@@ -90,12 +90,17 @@ def plot_training_curves(
     lines = ax.plot(epochs, train, label="Train", color="#1f77b4")
     lines += ax.plot(epochs, val, label="Validation", color="#d62728")
 
-    # Mark the lowest validation loss (the checkpoint saved as model_best.pt).
+    # Mark the lowest validation loss (the checkpoint saved as model_best.pt). A run with no
+    # validation split selects on training loss instead, so mark that curve.
     finite = [(e, v) for e, v in zip(epochs, val) if v == v]  # v == v drops nan
+    colour = "#d62728"
+    if not finite:
+        finite = [(e, v) for e, v in zip(epochs, train) if v == v]
+        colour = "#1f77b4"
     best_e = None
     if finite:
         best_e, best_v = min(finite, key=lambda ev: ev[1])
-        ax.scatter([best_e], [best_v], color="#d62728", zorder=5)
+        ax.scatter([best_e], [best_v], color=colour, zorder=5)
         ax.annotate(f"best: {best_v:.4f} @ epoch {best_e}", (best_e, best_v),
                     textcoords="offset points", xytext=(0, 9), ha="center", fontsize=8)
 

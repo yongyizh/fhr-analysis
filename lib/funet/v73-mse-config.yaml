@@ -1,0 +1,47 @@
+# FUNet v73 = the funet-v29 recipe trained on ALL THREE patients (6, 7 and 8).
+#
+# Model and train sections match v29 / v53 (3 fibers 1B/2A/2B, mse). The only change is the
+# data: stereo_v7_3ch_all puts patient 8 -- the held-out validation patient everywhere else --
+# into training, so nothing is held out.
+#
+# With no val_dir, model_best.pt is the LOWEST-TRAINING-LOSS epoch (common.engine.fit), not
+# a validation pick. Training loss is measured on augmented random crops, so it is noisy and
+# under a cosine schedule it usually bottoms out near the end: expect model_best.pt to sit
+# close to model_last.pt. Judge this model on an unseen patient (e.g. PT12), not on its loss.
+
+model:
+  channels: 3
+  dilations: [1, 1, 1]
+  bottleneck_dilation: 1
+  bottleneck_convs: 2
+  codec_convolutions: 3
+  base_channels: 12
+  dropout: 0.0
+  n_fft: 1024
+  hop_length: 256
+
+train:
+  optimizer: 'AdamW'
+  learning_rate: 3.e-4
+  weight_decay: 0.2
+  batch_size: 8
+  epochs: 80
+  crop_len: 7
+  loss: 'mse'
+  lr_schedule: 'cosine'
+  min_lr: 1.e-5
+  # Inert under 'mse' (corr_amp reads these); kept so the diff against v29 stays minimal.
+  amp_weight: 0.1
+  amp_beat_threshold: 0.1
+  # Off: HR agreement is scored on the validation split, and there is none.
+  measure_hr: false
+  augment: ['channel_dropout', 'gain', 'noise']
+  freq_mask: 0
+  time_mask: 0
+
+data:
+  train_dir: 'training/stereo_v7_3ch_all/fetal-train'
+  val_dir: ''   # nothing held out -> model_best.pt selected on training loss
+  num_workers: 8
+
+model_dir: 'models/funet-v73/'

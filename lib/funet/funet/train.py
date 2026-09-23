@@ -40,7 +40,9 @@ def main(argv=None) -> None:
     run_training(task, config)
 
     # --- diagnostics (optional; delete this block and the CLI argument to remove) ---
-    if args.diagnostics:
+    if args.diagnostics and not config.data.val_dir:
+        print("--diagnostics skipped: it plots validation snippets and there is no val_dir")
+    elif args.diagnostics:
         from common.diagnostics import plot_snippet_diagnostics
         plot_snippet_diagnostics(
             task, config,

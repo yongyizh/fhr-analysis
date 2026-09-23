@@ -30,11 +30,11 @@ class FitResult:
     the number match the model you would actually deploy.
     """
 
-    best_val_loss: float
+    best_val_loss: float    # the selection loss: training loss when there was no val split
     best_epoch: int
     best_score: Optional[HRScore] = None
     train_losses: List[float] = field(default_factory=list)
-    val_losses: List[float] = field(default_factory=list)
+    val_losses: List[Optional[float]] = field(default_factory=list)
     scores: List[Optional[HRScore]] = field(default_factory=list)
 
 
@@ -110,7 +110,7 @@ def evaluate(
 def fit(
         model: nn.Module,
         train_data: DataLoader,
-        val_data: DataLoader,
+        val_data: Optional[DataLoader],
         optimiser: optim.Optimizer,
         loss_fn: Callable,
         epochs: int,
@@ -149,6 +149,11 @@ def fit(
     may raise to stop the run early -- the Optuna search uses this to report intermediate
     losses and prune unpromising trials, and keeping it a plain callback means this module
     never imports optuna.
+
+    ``val_data`` None means there is no held-out split (every patient trains). The training
+    loss then stands in for validation loss everywhere it is used -- checkpoint selection,
+    early stopping, the plateau schedule and ``on_epoch`` -- so model_best.pt is the
+    lowest-training-loss epoch. No scorer runs, since there is nothing held out to score.
     """
     lowest_loss = float("inf")
     best_epoch = -1
@@ -161,16 +166,21 @@ def fit(
     for epoch in range(epochs):
         train_loss, max_grad_norm = train_one_epoch(
             model, train_data, optimiser, loss_fn, device, clip)
-        scorer = make_scorer() if make_scorer is not None else None
-        val_loss = evaluate(model, device, val_data, loss_fn, scorer)
-        score = scorer.result() if scorer is not None else None
+        if val_data is not None:
+            scorer = make_scorer() if make_scorer is not None else None
+            val_loss = evaluate(model, device, val_data, loss_fn, scorer)
+            score = scorer.result() if scorer is not None else None
+        else:
+            val_loss = score = None
+        # What selects the checkpoint and drives the schedule / early stop / pruning.
+        select_loss = train_loss if val_loss is None else val_loss
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         scores.append(score)
 
-        if val_loss < lowest_loss:
-            lowest_loss = val_loss
+        if select_loss < lowest_loss:
+            lowest_loss = select_loss
             best_epoch = epoch
             best_score = score
             epochs_since_improvement = 0
@@ -184,20 +194,21 @@ def fit(
         # Report the LR this epoch actually ran at, then step the schedule for the next one.
         lr_note = f', LR: {optimiser.param_groups[0]["lr"]:.2e}' if scheduler is not None else ''
         if scheduler is not None:
-            scheduler.step(val_loss)
+            scheduler.step(select_loss)
 
         grad_note = '' if max_grad_norm is None else \
             f', Max grad norm (pre-clip): {max_grad_norm:.4f}'
         score_note = '' if score is None else f', HR: {score}'
+        val_note = 'n/a' if val_loss is None else f'{val_loss:.6f}'
         print(f'[{epoch+1}|{epochs}] Train loss: {train_loss:.6f}, '
-              f'Val loss: {val_loss:.6f}{score_note}{grad_note}{lr_note}')
+              f'Val loss: {val_note}{score_note}{grad_note}{lr_note}')
 
         # After the epoch is fully logged so a pruning exception can't skip the print above.
         if on_epoch is not None:
-            on_epoch(epoch, val_loss)
+            on_epoch(epoch, select_loss)
 
         if early_stop_patience is not None and epochs_since_improvement >= early_stop_patience:
-            print(f'Early stopping: no validation improvement for {early_stop_patience} epoch(s).')
+            print(f'Early stopping: no {"training" if val_data is None else "validation"} improvement for {early_stop_patience} epoch(s).')
             break
 
     if last_model_path is not None:
